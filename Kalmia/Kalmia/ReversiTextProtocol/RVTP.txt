@@ -36,8 +36,8 @@ play
 エラー：不正な着手が行われたとき、"? illegal move"と出力
         不正な座標が指定されたとき、"? invalid color or coordinate"
 
-fixed_handicap
-内容：固定位置に置き石を配置
+handicap
+内容：置き石を配置
 引数：置き石数
 エラー：不正な置き石数 "? board not empty"と出力
 		整数以外の引数が指定された場合は "? handicap not an integer"と出力

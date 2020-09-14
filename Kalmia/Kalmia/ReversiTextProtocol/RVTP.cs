@@ -42,7 +42,7 @@ namespace Kalmia.ReversiTextProtocol
             commands.Add("version", ExecuteVersionCommand);
             commands.Add("clear_board", ExecuteClearBoardCommand);
             commands.Add("play", ExecutePlayCommand);
-            commands.Add("fixed_handicap", ExecuteFixedHandicapCommand);
+            commands.Add("handicap", ExecuteHandicapCommand);
             commands.Add("loadsgf", ExecuteLoadSGFCommand);
             commands.Add("genmove", ExecuteGenMoveCommand);
             commands.Add("reg_genmove", ExecuteRegGenMoveCommand);
@@ -132,7 +132,7 @@ namespace Kalmia.ReversiTextProtocol
             });
         }
 
-        void ExecuteFixedHandicapCommand(string[] args)
+        void ExecuteHandicapCommand(string[] args)
         {
             ExecuteCommand(() =>
             {
