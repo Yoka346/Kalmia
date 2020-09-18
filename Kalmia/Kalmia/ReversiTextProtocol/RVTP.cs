@@ -42,6 +42,7 @@ namespace Kalmia.ReversiTextProtocol
             commands.Add("version", ExecuteVersionCommand);
             commands.Add("clear_board", ExecuteClearBoardCommand);
             commands.Add("play", ExecutePlayCommand);
+            commands.Add("put", ExecutePutCommand);
             commands.Add("handicap", ExecuteHandicapCommand);
             commands.Add("loadsgf", ExecuteLoadSGFCommand);
             commands.Add("genmove", ExecuteGenMoveCommand);
@@ -128,6 +129,17 @@ namespace Kalmia.ReversiTextProtocol
                 var color = StringToColor(args[1]);
                 var (x, y) = StringToPosition(args[2]);
                 this.ENGINE.Play(color, x, y);
+                return string.Empty;
+            });
+        }
+
+        void ExecutePutCommand(string[] args)
+        {
+            ExecuteCommand(() =>
+            {
+                var color = StringToColor(args[1]);
+                var (x, y) = StringToPosition(args[2]);
+                //this.ENGINE.Put(color, x, y);
                 return string.Empty;
             });
         }

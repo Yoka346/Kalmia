@@ -25,6 +25,7 @@ namespace Kalmia.ReversiTextProtocol
         string GetVersion();
         void ClearBoard(InitialPosition initPosition);
         void Play(Color color, int posX, int posY);
+        void Put(Color color, int posX, int posY);
         List<(int x, int y)> SetHandicap(int num);
         string LoadSGF(string path);
         string LoadSGF(string path, int posX, int posY);

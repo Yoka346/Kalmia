@@ -66,10 +66,29 @@ namespace Kalmia.Engines
             this.BoardHistory.Clear();
         }
 
-        public void Play(Color turn,int posX,int posY)
+        public void Play(Color color,int posX,int posY)
         {
-            if (!this.Board.Move(turn, posX, posY))
-                throw new RVTPException("illegal move", false);
+            try
+            {
+                if (!this.Board.Move(color, posX, posY))
+                    throw new RVTPException("illegal move", false);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new RVTPException("illegal coordinate", false);
+            }
+        }
+
+        public void Put(Color color,int posX,int posY)
+        {
+            try
+            {
+                this.Board.PutStone(color, posX, posY);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new RVTPException("invalid coordinate", false);
+            }
         }
 
         public List<(int x, int y)> SetHandicap(int num)
