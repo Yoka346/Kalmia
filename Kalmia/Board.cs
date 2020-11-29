@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
 using Kalmia.ReversiTextProtocol;
@@ -118,6 +119,12 @@ namespace Kalmia
 
         public bool Move(Color turn,int posX,int posY)
         {
+            if (posX < 0 || posX > 7)
+                throw new ArgumentOutOfRangeException(nameof(posX));
+
+            if (posY < 0 || posY > 7)
+                throw new ArgumentOutOfRangeException(nameof(posY));
+
             Move move;
             move.Turn = turn;
             move.Position = 1UL << posX + posY * BOARD_SIZE;
@@ -231,10 +238,20 @@ namespace Kalmia
             return (int)((turn == Color.Black) ? Popcnt.X64.PopCount(this.FirstBoard) : Popcnt.X64.PopCount(this.SecondBoard));
         }
 
-        public void PutStone(Color turn, int x, int y)
+        public void PutStone(Color turn, int posX, int posY)
         {
+            if (posX < 0 || posX > 7)
+                throw new ArgumentOutOfRangeException(nameof(posX));
+
+            if (posY < 0 || posY > 7)
+                throw new ArgumentOutOfRangeException(nameof(posY));
+
             this.SolvedLegalPat = false;
-            var putPat = 1UL << x + y * BOARD_SIZE;
+            var putPat = 1UL << posX + posY * BOARD_SIZE;
+
+            if ((putPat & (this.FirstBoard | this.SecondBoard)) != 0UL)
+                throw new ArgumentException("Not empty.");
+
             if (turn == Color.Black)
                 this.FirstBoard |= putPat;
             else

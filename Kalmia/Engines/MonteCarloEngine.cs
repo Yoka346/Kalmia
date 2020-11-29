@@ -66,10 +66,33 @@ namespace Kalmia.Engines
             this.BoardHistory.Clear();
         }
 
-        public void Play(Color turn,int posX,int posY)
+        public void Play(Color color,int posX,int posY)
         {
-            if (!this.Board.Move(turn, posX, posY))
-                throw new RVTPException("illegal move", false);
+            try
+            {
+                if (!this.Board.Move(color, posX, posY))
+                    throw new RVTPException("illegal move", false);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new RVTPException("illegal coordinate", false);
+            }
+        }
+
+        public void Put(Color color,int posX,int posY)
+        {
+            try
+            {
+                this.Board.PutStone(color, posX, posY);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new RVTPException("invalid coordinate", false);
+            }catch(ArgumentException ex)
+            {
+                if (ex.Message == "Not empty.")
+                    throw new RVTPException("board not empty.", false);
+            }
         }
 
         public List<(int x, int y)> SetHandicap(int num)
@@ -190,29 +213,29 @@ namespace Kalmia.Engines
         float Playout(Color turn, Board board)
         {
             var scoreSum = new float[this.THREAD_NUM];
-            Parallel.For(0, this.THREAD_NUM, (threadID) => simulate(threadID));
-
+            Parallel.For(0, this.THREAD_NUM, (threadID) => scoreSum[threadID] = Simulate(board, turn, threadID));
             for (var i = 0; i < this.PLAYOUT_NUM % this.THREAD_NUM; i++)
-                simulate(0);
-
-            void simulate(int threadID)
-            {
-                var boardCache = this.BOARD_CACHE[threadID];
-                var movesCache = this.MOVES_CACHE[threadID];
-                for (var i = 0; i < this.PLAYOUT_NUM / this.THREAD_NUM; i++)
-                {
-                    board.CopyTo(boardCache);
-                    GameResult result;
-                    while ((result = boardCache.GetResult(turn)) == GameResult.NotEnd)
-                    {
-                        var num = boardCache.GetNextMoves(movesCache);
-                        boardCache.Move(movesCache[this.RAND[threadID].Next((uint)num)]);
-                    }
-                    scoreSum[threadID] += GetScore(result);
-                }
-            }
-
+                Simulate(board, turn, 0);
             return scoreSum.Average();
+        }
+
+        float Simulate(Board board, Color turn, int threadID)
+        {
+            var boardCache = this.BOARD_CACHE[threadID];
+            var movesCache = this.MOVES_CACHE[threadID];
+            var scoreSum = 0.0f;
+            for (var i = 0; i < this.PLAYOUT_NUM / this.THREAD_NUM; i++)
+            {
+                board.CopyTo(boardCache);
+                GameResult result;
+                while ((result = boardCache.GetResult(turn)) == GameResult.NotEnd)
+                {
+                    var num = boardCache.GetNextMoves(movesCache);
+                    boardCache.Move(movesCache[this.RAND[threadID].Next((uint)num)]);
+                }
+                scoreSum += GetScore(result);
+            }
+            return scoreSum;
         }
 
         static float GetScore(GameResult result)

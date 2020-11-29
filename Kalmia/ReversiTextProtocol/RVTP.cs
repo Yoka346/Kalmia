@@ -42,7 +42,8 @@ namespace Kalmia.ReversiTextProtocol
             commands.Add("version", ExecuteVersionCommand);
             commands.Add("clear_board", ExecuteClearBoardCommand);
             commands.Add("play", ExecutePlayCommand);
-            commands.Add("fixed_handicap", ExecuteFixedHandicapCommand);
+            commands.Add("put", ExecutePutCommand);
+            commands.Add("handicap", ExecuteHandicapCommand);
             commands.Add("loadsgf", ExecuteLoadSGFCommand);
             commands.Add("genmove", ExecuteGenMoveCommand);
             commands.Add("reg_genmove", ExecuteRegGenMoveCommand);
@@ -125,6 +126,8 @@ namespace Kalmia.ReversiTextProtocol
         {
             ExecuteCommand(() =>
             {
+                if (args.Length < 3)
+                    throw new RVTPException("invalid option", false);
                 var color = StringToColor(args[1]);
                 var (x, y) = StringToPosition(args[2]);
                 this.ENGINE.Play(color, x, y);
@@ -132,10 +135,25 @@ namespace Kalmia.ReversiTextProtocol
             });
         }
 
-        void ExecuteFixedHandicapCommand(string[] args)
+        void ExecutePutCommand(string[] args)
         {
             ExecuteCommand(() =>
             {
+                if (args.Length < 3)
+                    throw new RVTPException("invalid option", false);
+                var color = StringToColor(args[1]);
+                var (x, y) = StringToPosition(args[2]);
+                this.ENGINE.Put(color, x, y);
+                return string.Empty;
+            });
+        }
+
+        void ExecuteHandicapCommand(string[] args)
+        {
+            ExecuteCommand(() =>
+            {
+                if (args.Length < 2)
+                    throw new RVTPException("invalid option", false);
                 if (int.TryParse(args[1], out int num))
                 {
                     var positions = this.ENGINE.SetHandicap(num);
@@ -292,18 +310,18 @@ namespace Kalmia.ReversiTextProtocol
 
         void RvtpSuccess(string msg)
         {
-            Console.WriteLine($"=\n {msg}");
+            Console.WriteLine($"=\n {msg}\n");
         }
 
         void RvtpFailure(string msg,bool isFatal)
         {
             if (isFatal)
             {
-                Console.WriteLine($"\nFATAL ERROR\n?{msg}");
+                Console.WriteLine($"\n? FATAL_ERROR : {msg}\n");
                 this.Quit = true;
             }
             else
-                Console.WriteLine($"\n? {msg}");
+                Console.WriteLine($"\n? {msg}\n");
         }
 
         static string BoardToString(Color[,] board)
