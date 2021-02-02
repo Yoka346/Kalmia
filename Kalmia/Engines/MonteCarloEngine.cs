@@ -68,6 +68,8 @@ namespace Kalmia.Engines
 
         public void Play(Color color,int posX,int posY)
         {
+            if (color != this.Board.Turn)
+                this.Board.ChangeCurrentTurn(color);
             try
             {
                 if (!this.Board.Move(color, posX, posY))
@@ -83,7 +85,7 @@ namespace Kalmia.Engines
         {
             try
             {
-                this.Board.PutStone(color, posX, posY);
+                this.Board.PutDisc(color, posX, posY);
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -128,6 +130,8 @@ namespace Kalmia.Engines
 
         public string GenerateMove(Color color)
         {
+            if (color != this.Board.Turn)
+                this.Board.ChangeCurrentTurn(color);
             var move = GetNextMove(color);
             this.BoardHistory.Push((Board)this.Board.Clone());
             this.Board.Move(move);
@@ -136,6 +140,8 @@ namespace Kalmia.Engines
 
         public string RegGenerateMove(Color color)
         {
+            if (color != this.Board.Turn)
+                this.Board.ChangeCurrentTurn(color);
             return Board.MoveToString(GetNextMove(color));
         }
 
@@ -161,10 +167,10 @@ namespace Kalmia.Engines
             switch (this.Board.GetResult(Color.Black))
             {
                 case GameResult.Win:
-                    return $"B+{this.Board.GetStoneCount(Color.Black) - this.Board.GetStoneCount(Color.White)}";
+                    return $"B+{this.Board.GetDiscCount(Color.Black) - this.Board.GetDiscCount(Color.White)}";
 
                 case GameResult.Lose:
-                    return $"W+{this.Board.GetStoneCount(Color.White) - this.Board.GetStoneCount(Color.Black)}";
+                    return $"W+{this.Board.GetDiscCount(Color.White) - this.Board.GetDiscCount(Color.Black)}";
 
                 case GameResult.Draw:
                     return "0";

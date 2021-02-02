@@ -4,20 +4,6 @@ using System.Text;
 
 namespace Kalmia.ReversiTextProtocol
 {
-    public enum Color
-    {
-        Black = 1,
-        White = -1,
-        Empty = 0
-    }
-
-    public enum InitialPosition
-    {
-        Cross,
-        Parallel,
-        Original
-    }
-
     public interface IEngine
     {
         void Quit();

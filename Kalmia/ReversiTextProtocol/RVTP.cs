@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Kalmia.ReversiTextProtocol
 {
@@ -64,15 +65,17 @@ namespace Kalmia.ReversiTextProtocol
         {
             while (!this.Quit)
             {
-                var args = Console.ReadLine().ToLower().Split(' ');
+                var args = Console.ReadLine().ToLower().Split(' '); // argsには0番目に識別番号、1番目にコマンド名、2番目以降は引数が格納される
+                int id = -1;
 
                 try
                 {
-                    this.COMMANDS[args[0]](args);
+                    id = int.Parse(args[0]);
+                    this.COMMANDS[args[1]](args);
                 }
-                catch (KeyNotFoundException)
+                catch (Exception ex) when (ex is KeyNotFoundException || ex is FormatException || ex is OverflowException)
                 {
-                    RvtpFailure("unknown command", false);
+                    RvtpFailure(id, "unknown command", false);
                 }
             }
             this.Quit = false;
@@ -80,40 +83,41 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteProtocolVersionCommand(string[] args)
         {
-            ExecuteCommand(() => VERSION);
+            ExecuteCommand(int.Parse(args[0]), () => VERSION);
         }
 
         void ExecuteQuitCommand(string[] args)
         {
-            ExecuteCommand(()=> 
+            ExecuteCommand(int.Parse(args[0]), () => 
             {
                 this.ENGINE.Quit();
+                this.Quit = true;
                 return string.Empty;
             });
         }
 
         void ExecuteNameCommand(string[] args)
         {
-            ExecuteCommand(this.ENGINE.GetName);
+            ExecuteCommand(int.Parse(args[0]), this.ENGINE.GetName);
         }
 
         void ExecuteVersionCommand(string[] args)
         {
-            ExecuteCommand(this.ENGINE.GetVersion);
+            ExecuteCommand(int.Parse(args[0]), this.ENGINE.GetVersion);
         }
 
         void ExecuteClearBoardCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length == 1)
+                if (args.Length != 3)
                     throw new RVTPException("invalid option", false);
 
-                if (args[1] == "cross")
+                if (args[2] == "cross")
                     this.ENGINE.ClearBoard(InitialPosition.Cross);
-                else if (args[1] == "parallel")
+                else if (args[2] == "parallel")
                     this.ENGINE.ClearBoard(InitialPosition.Parallel);
-                else if (args[1] == "original")
+                else if (args[2] == "original")
                     this.ENGINE.ClearBoard(InitialPosition.Original);
                 else
                     throw new RVTPException("invalid option", false);
@@ -124,12 +128,18 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecutePlayCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length < 3)
+                if (args[3] == "pass")
+                {
+                    this.ENGINE.Play(StringToColor(args[2]), -1, -1);
+                    return string.Empty;
+                }
+
+                if (args.Length != 4)
                     throw new RVTPException("invalid option", false);
-                var color = StringToColor(args[1]);
-                var (x, y) = StringToPosition(args[2]);
+                var color = StringToColor(args[2]);
+                var (x, y) = StringToPosition(args[3]);
                 this.ENGINE.Play(color, x, y);
                 return string.Empty;
             });
@@ -137,12 +147,12 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecutePutCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length < 3)
+                if (args.Length != 4)
                     throw new RVTPException("invalid option", false);
-                var color = StringToColor(args[1]);
-                var (x, y) = StringToPosition(args[2]);
+                var color = StringToColor(args[2]);
+                var (x, y) = StringToPosition(args[3]);
                 this.ENGINE.Put(color, x, y);
                 return string.Empty;
             });
@@ -150,11 +160,11 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteHandicapCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length < 2)
+                if (args.Length != 3)
                     throw new RVTPException("invalid option", false);
-                if (int.TryParse(args[1], out int num))
+                if (int.TryParse(args[2], out int num))
                 {
                     var positions = this.ENGINE.SetHandicap(num);
                     var ret = string.Empty;
@@ -169,49 +179,49 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteLoadSGFCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length == 1)
+                if (args.Length == 2)
                     throw new RVTPException("cannnot open or parse \'\'", false);
 
-                if (args.Length == 2)
-                    return this.ENGINE.LoadSGF(args[1]);
+                if (args.Length == 3)
+                    return this.ENGINE.LoadSGF(args[2]);
 
-                if (int.TryParse(args[2], out int moveNum))
-                    return this.ENGINE.LoadSGF(args[1], moveNum);
+                if (int.TryParse(args[3], out int moveNum))
+                    return this.ENGINE.LoadSGF(args[2], moveNum);
                 else
                 {
-                    var (x, y) = StringToPosition(args[2]);
-                    return this.ENGINE.LoadSGF(args[1], x, y);
+                    var (x, y) = StringToPosition(args[3]);
+                    return this.ENGINE.LoadSGF(args[2], x, y);
                 }
             });
         }
 
         void ExecuteGenMoveCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length < 2)
+                if (args.Length != 3)
                     throw new RVTPException("invalid option", false);
-                var color = StringToColor(args[1]);
+                var color = StringToColor(args[2]);
                 return this.ENGINE.GenerateMove(color);
             });
         }
 
         void ExecuteRegGenMoveCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (args.Length < 2)
+                if (args.Length != 3)
                     throw new RVTPException("invalid option", false);
-                var color = StringToColor(args[1]);
+                var color = StringToColor(args[2]);
                 return this.ENGINE.RegGenerateMove(color);
             });
         }
 
         void ExecuteUndoCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
                 this.ENGINE.Undo();
                 return string.Empty;
@@ -220,9 +230,9 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteTimeSettingsCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (int.TryParse(args[1], out int time) && int.TryParse(args[2], out int countDownTime) && int.TryParse(args[3], out int countDownNum))
+                if (int.TryParse(args[2], out int time) && int.TryParse(args[3], out int countDownTime) && int.TryParse(args[4], out int countDownNum))
                 {
                     this.ENGINE.SetTime(time, countDownTime, countDownNum);
                     return string.Empty;
@@ -234,9 +244,9 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteTimeLeftCommand(string[] args)
         {
-            ExecuteCommand(() =>
+            ExecuteCommand(int.Parse(args[0]), () =>
             {
-                if (int.TryParse(args[1], out int time) && int.TryParse(args[2], out int countDownNumLeft))
+                if (int.TryParse(args[2], out int time) && int.TryParse(args[3], out int countDownNumLeft))
                 {
                     this.ENGINE.SendTimeLeft(time, countDownNumLeft);
                     return string.Empty;
@@ -248,12 +258,12 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteFinalScoreCommand(string[] args)
         {
-            ExecuteCommand(this.ENGINE.GetFinalScore);
+            ExecuteCommand(int.Parse(args[0]), this.ENGINE.GetFinalScore);
         }
 
         void ExecuteShowBoardCommand(string[] args)
         {
-            ExecuteCommand(()=> 
+            ExecuteCommand(int.Parse(args[0]), () => 
             {
                 for (var x = 0; x < BOARD_SIZE; x++)
                     for (var y = 0; y < BOARD_SIZE; y++)
@@ -264,7 +274,7 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteHelpCommand(string[] args)
         {
-            ExecuteCommand(()=> 
+            ExecuteCommand(int.Parse(args[0]), () => 
             {
                 var ret = string.Empty;
                 foreach (var cmd in this.COMMANDS.Keys)
@@ -273,55 +283,55 @@ namespace Kalmia.ReversiTextProtocol
             });
         }
 
-        void ExecuteKnowCommandCommand(string[] arg)
+        void ExecuteKnowCommandCommand(string[] args)
         {
-            ExecuteCommand(() => 
+            ExecuteCommand(int.Parse(args[0]), () => 
             {
-                if (arg.Length < 2)
+                if (args.Length != 3)
                     throw new RVTPException("invalid option", false);
-                return this.COMMANDS.ContainsKey(arg[1]).ToString(); 
+                return this.COMMANDS.ContainsKey(args[2]).ToString(); 
             });
         }
 
         void ExecuteOriginalCommand(string[] args)
         {
-            ExecuteCommand(() => this.ENGINE.ExecuteOriginalCommand(args[0], args));
+            ExecuteCommand(int.Parse(args[0]), () => this.ENGINE.ExecuteOriginalCommand(args[2], args));
         }
 
-        void ExecuteCommand(Func<string> command)
+        void ExecuteCommand(int id, Func<string> command)
         {
             try
             {
-                RvtpSuccess(command());
+                RvtpSuccess(id, command());
             }
             catch (Exception ex)
             {
-                CatchException(ex);
+                CatchException(id, ex);
             }
         }
 
-        void CatchException(Exception ex)
+        void CatchException(int id, Exception ex)
         {
             if (ex is RVTPException rvtpErr)
-                RvtpFailure(rvtpErr.Message, rvtpErr.IsFatal);
+                RvtpFailure(id, rvtpErr.Message, rvtpErr.IsFatal);
             else
-                RvtpFailure($"{ex.Message}\n{ex.StackTrace}", true);
+                RvtpFailure(id, $"{ex.Message}\n{ex.StackTrace}", true);
         }
 
-        void RvtpSuccess(string msg)
+        void RvtpSuccess(int id, string msg)
         {
-            Console.WriteLine($"=\n {msg}\n");
+            Console.WriteLine($"={id}\n {msg}\n\n");
         }
 
-        void RvtpFailure(string msg,bool isFatal)
+        void RvtpFailure(int id, string msg,bool isFatal)
         {
             if (isFatal)
             {
-                Console.WriteLine($"\n? FATAL_ERROR : {msg}\n");
+                Console.WriteLine($"?{id}\n FATAL_ERROR : {msg}\n");
                 this.Quit = true;
             }
             else
-                Console.WriteLine($"\n? {msg}\n");
+                Console.WriteLine($"?{id}\n {msg}\n\n");
         }
 
         static string BoardToString(Color[,] board)

@@ -9,6 +9,20 @@ using Kalmia.ReversiTextProtocol;
 
 namespace Kalmia
 {
+    public enum Color
+    {
+        Black = 1,
+        White = -1,
+        Empty = 0
+    }
+
+    public enum InitialPosition
+    {
+        Cross,
+        Parallel,
+        Original
+    }
+
     public enum GameResult
     {
         Win,
@@ -29,8 +43,8 @@ namespace Kalmia
 
         static ReadOnlyCollection<(int x, int y)> HANDICAP_POSITIONS;
 
-        ulong FirstBoard;
-        ulong SecondBoard;
+        ulong BlackBoard;
+        ulong WhiteBoard;
         public Color Turn { get { return this._Turn; } }
         Color _Turn;
         public int MoveCount { get { return this._MoveCount; } }
@@ -72,17 +86,17 @@ namespace Kalmia
             switch (initPos)
             {
                 case InitialPosition.Cross:
-                    PutStone(Color.Black, 4, 3);
-                    PutStone(Color.Black, 3, 4);
-                    PutStone(Color.White, 3, 3);
-                    PutStone(Color.White, 4, 4);
+                    PutDisc(Color.Black, 4, 3);
+                    PutDisc(Color.Black, 3, 4);
+                    PutDisc(Color.White, 3, 3);
+                    PutDisc(Color.White, 4, 4);
                     break;
 
                 case InitialPosition.Parallel:
-                    PutStone(Color.Black, 3, 4);
-                    PutStone(Color.Black, 4, 4);
-                    PutStone(Color.White, 3, 3);
-                    PutStone(Color.White, 4, 3);
+                    PutDisc(Color.Black, 3, 4);
+                    PutDisc(Color.Black, 4, 4);
+                    PutDisc(Color.White, 3, 3);
+                    PutDisc(Color.White, 4, 3);
                     break;
             }
         }
@@ -90,11 +104,17 @@ namespace Kalmia
         public Color GetColor(int posX,int posY)
         {
             var pos = 1UL << posX + posY * BOARD_SIZE;
-            if ((this.FirstBoard & pos) != 0)
+            if ((this.BlackBoard & pos) != 0)
                 return Color.Black;
-            if ((this.SecondBoard & pos) != 0)
+            if ((this.WhiteBoard & pos) != 0)
                 return Color.White;
             return Color.Empty;
+        }
+
+        public void ChangeCurrentTurn(Color turn)
+        {
+            this._Turn = turn;
+            this.SolvedLegalPat = false;
         }
 
         public List<(int x, int y)> SetHandicap(int num)
@@ -112,13 +132,21 @@ namespace Kalmia
             for (var i = 0; i < num; i++)
             {
                 var pos = HANDICAP_POSITIONS[i];
-                PutStone(Color.Black, pos.x, pos.y);
+                PutDisc(Color.Black, pos.x, pos.y);
             }
             return HANDICAP_POSITIONS.ToList().GetRange(0, num);
         }
 
         public bool Move(Color turn,int posX,int posY)
         {
+            if(posX == -1 && posY == -1)
+            {
+                Move pass;
+                pass.Turn = turn;
+                pass.Position = 0;
+                return Move(pass);
+            }
+
             if (posX < 0 || posX > 7)
                 throw new ArgumentOutOfRangeException(nameof(posX));
 
@@ -143,15 +171,15 @@ namespace Kalmia
 
                 if (this.Turn == Color.Black)
                 {
-                    var revPat = CalcRevPat(move.Position, this.FirstBoard, this.SecondBoard);
-                    this.FirstBoard ^= move.Position | revPat;
-                    this.SecondBoard ^= revPat;
+                    var revPat = CalcRevPat(move.Position, this.BlackBoard, this.WhiteBoard);
+                    this.BlackBoard ^= move.Position | revPat;
+                    this.WhiteBoard ^= revPat;
                 }
                 else
                 {
-                    var revPat = CalcRevPat(move.Position, this.SecondBoard, this.FirstBoard);
-                    this.SecondBoard ^= move.Position | revPat;
-                    this.FirstBoard ^= revPat;
+                    var revPat = CalcRevPat(move.Position, this.WhiteBoard, this.BlackBoard);
+                    this.WhiteBoard ^= move.Position | revPat;
+                    this.BlackBoard ^= revPat;
                 }
                 this.PassCount = 0;
             }
@@ -194,24 +222,15 @@ namespace Kalmia
 
         public int GetBlankNum()
         {
-            return BOARD_SIZE * BOARD_SIZE - (GetStoneCount(Color.Black) + GetStoneCount(Color.White));
-        }
-
-        public void CopyTo(Board board)
-        {
-            board._Turn = this.Turn;
-            board.FirstBoard = this.FirstBoard;
-            board.SecondBoard = this.SecondBoard;
-            board.PassCount = this.PassCount;
-            board._MoveCount = this._MoveCount;
+            return BOARD_SIZE * BOARD_SIZE - (GetDiscCount(Color.Black) + GetDiscCount(Color.White));
         }
 
         public GameResult GetResult(Color turn)
         {
             if (this.PassCount == 2)
             {
-                var firstCount = GetStoneCount(Color.Black);
-                var secondCount = GetStoneCount(Color.White);
+                var firstCount = GetDiscCount(Color.Black);
+                var secondCount = GetDiscCount(Color.White);
                 if (firstCount > secondCount)
                     return (turn == Color.Black) ? GameResult.Win : GameResult.Lose;
                 if (firstCount < secondCount)
@@ -223,7 +242,16 @@ namespace Kalmia
 
         public bool IsSameAs(Board board)
         {
-            return board != null && board.Turn == this.Turn && board.FirstBoard == this.FirstBoard && board.SecondBoard == this.SecondBoard;
+            return board != null && board.Turn == this.Turn && board.BlackBoard == this.BlackBoard && board.WhiteBoard == this.WhiteBoard;
+        }
+
+        public void CopyTo(Board board)
+        {
+            board._Turn = this.Turn;
+            board.BlackBoard = this.BlackBoard;
+            board.WhiteBoard = this.WhiteBoard;
+            board.PassCount = this.PassCount;
+            board._MoveCount = this._MoveCount;
         }
 
         public object Clone()
@@ -233,12 +261,17 @@ namespace Kalmia
             return board;
         }
 
-        public int GetStoneCount(Color turn)
+        public FastBoard ToFastBoard()
         {
-            return (int)((turn == Color.Black) ? Popcnt.X64.PopCount(this.FirstBoard) : Popcnt.X64.PopCount(this.SecondBoard));
+            return new FastBoard(this.BlackBoard, this.WhiteBoard, this._Turn);
         }
 
-        public void PutStone(Color turn, int posX, int posY)
+        public int GetDiscCount(Color turn)
+        {
+            return (int)((turn == Color.Black) ? Popcnt.X64.PopCount(this.BlackBoard) : Popcnt.X64.PopCount(this.WhiteBoard));
+        }
+
+        public void PutDisc(Color turn, int posX, int posY)
         {
             if (posX < 0 || posX > 7)
                 throw new ArgumentOutOfRangeException(nameof(posX));
@@ -249,13 +282,13 @@ namespace Kalmia
             this.SolvedLegalPat = false;
             var putPat = 1UL << posX + posY * BOARD_SIZE;
 
-            if ((putPat & (this.FirstBoard | this.SecondBoard)) != 0UL)
+            if ((putPat & (this.BlackBoard | this.WhiteBoard)) != 0UL)
                 throw new ArgumentException("Not empty.");
 
             if (turn == Color.Black)
-                this.FirstBoard |= putPat;
+                this.BlackBoard |= putPat;
             else
-                this.SecondBoard |= putPat;
+                this.WhiteBoard |= putPat;
         }
 
         public override string ToString()
@@ -267,9 +300,9 @@ namespace Kalmia
                 boardStr += (char)('１' + i);
                 for (var j = 0; j < BOARD_SIZE; j++)
                 {
-                    if ((mask & this.FirstBoard) != 0)
+                    if ((mask & this.BlackBoard) != 0)
                         boardStr += "ｏ";
-                    else if ((mask & this.SecondBoard) != 0)
+                    else if ((mask & this.WhiteBoard) != 0)
                         boardStr += "ｘ";
                     else
                         boardStr += "・";
@@ -282,6 +315,13 @@ namespace Kalmia
 
         public static Move StringToMove(Color turn, string move)
         {
+            if(move == "pass")
+            {
+                Move pass;
+                pass.Position = 0UL;
+                pass.Turn = turn;
+            }
+
             if (move.Length != 2)
                 throw new ArgumentException("Invalid Move");
 
@@ -300,7 +340,7 @@ namespace Kalmia
         public static string MoveToString(Move move)
         {
             if (move.Position == 0)
-                return "NULL";
+                return "pass";
 
             var mask = 1UL;
             var loc = 0;
@@ -314,9 +354,9 @@ namespace Kalmia
             if (this.SolvedLegalPat)
                 return this.LegalPat;
             if (this.Turn == Color.Black)
-                this.LegalPat = CalcLegalPat(this.FirstBoard, this.SecondBoard);
+                this.LegalPat = CalcLegalPat(this.BlackBoard, this.WhiteBoard);
             else
-                this.LegalPat = CalcLegalPat(this.SecondBoard, this.FirstBoard);
+                this.LegalPat = CalcLegalPat(this.WhiteBoard, this.BlackBoard);
             this.SolvedLegalPat = true;
             return this.LegalPat;
         }
