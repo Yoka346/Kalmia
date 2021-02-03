@@ -9,6 +9,7 @@ namespace Kalmia
     {
         public const int BOARD_SIZE = 8;
         public const int GRID_NUM = BOARD_SIZE * BOARD_SIZE;
+        public const int MAX_MOVE_NUM = 46;     // 1つの局面に現れる合法手数は少なくとも46手以下.
 
         ulong BlackBoard;
         ulong WhiteBoard;
@@ -28,7 +29,7 @@ namespace Kalmia
             this.Turn = turn;
         }
 
-        public void Move(Move move)
+        public void Update(Move move)
         {
             if (move.Position != 0UL)
             {

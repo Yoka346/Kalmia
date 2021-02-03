@@ -1,6 +1,8 @@
-﻿using Kalmia.Engines;
+﻿using System;
+using System.Runtime.InteropServices;
+using Kalmia.Engines;
+using Kalmia.Engines.MCTSEngine;
 using Kalmia.ReversiTextProtocol;
-using System;
 
 namespace Kalmia
 {
@@ -8,9 +10,6 @@ namespace Kalmia
     {
         static void Main(string[] args)
         {
-            var mc = new MonteCarloEngine(1000, 8);
-            var rvtp = new RVTP(mc);
-            rvtp.MainLoop();
         }
     }
 }
