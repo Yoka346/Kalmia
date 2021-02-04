@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.Intrinsics.X86;
-using System.Text;
 
 namespace Kalmia
 {
@@ -27,6 +25,11 @@ namespace Kalmia
             this.BlackBoard = blackBoard;
             this.WhiteBoard = whiteBoard;
             this.Turn = turn;
+        }
+
+        public bool IsLegalMove(Move move)
+        {
+            return move.Turn == this.Turn && PopCount(move.Position) == 1 && (move.Position & GetLegalPat()) != 0;
         }
 
         public void Update(Move move)
@@ -60,7 +63,7 @@ namespace Kalmia
             if(legalPat == 0UL)
             {
                 moves[0].Turn = this.Turn;
-                moves[1].Position = 0UL;
+                moves[0].Position = 0UL;
                 return 1;
             }
 
@@ -112,6 +115,11 @@ namespace Kalmia
                 this.BlackBoard |= putPat;
             else
                 this.WhiteBoard |= putPat;
+        }
+
+        public bool EqualTo(FastBoard board)
+        {
+            return board.BlackBoard == this.BlackBoard && board.WhiteBoard == this.WhiteBoard && board.Turn == this.Turn;
         }
 
         public void CopyTo(FastBoard board)

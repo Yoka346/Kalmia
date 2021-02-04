@@ -1,14 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Net.Http.Headers;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using Kalmia;
-using Kalmia.Properties;
 using Kalmia.ReversiTextProtocol;
 
 namespace Kalmia.Engines
@@ -24,10 +17,8 @@ namespace Kalmia.Engines
         Stack<Board> BoardHistory = new Stack<Board>();
         readonly Xorshift[] RAND;
 
-        #region cache
         readonly Board[] BOARD_CACHE;
         readonly Move[][] MOVES_CACHE;
-        #endregion
 
         public MonteCarloEngine(int playoutNum,int threadNum)
         {
@@ -134,7 +125,7 @@ namespace Kalmia.Engines
                 this.Board.ChangeCurrentTurn(color);
             var move = GetNextMove(color);
             this.BoardHistory.Push((Board)this.Board.Clone());
-            this.Board.Move(move);
+            this.Board.Update(move);
             return Board.MoveToString(move);
         }
 
@@ -237,7 +228,7 @@ namespace Kalmia.Engines
                 while ((result = boardCache.GetResult(turn)) == GameResult.NotEnd)
                 {
                     var num = boardCache.GetNextMoves(movesCache);
-                    boardCache.Move(movesCache[this.RAND[threadID].Next((uint)num)]);
+                    boardCache.Update(movesCache[this.RAND[threadID].Next((uint)num)]);
                 }
                 scoreSum += GetScore(result);
             }

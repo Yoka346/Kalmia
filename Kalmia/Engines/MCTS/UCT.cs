@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Kalmia.Engines.MCTSEngine
+namespace Kalmia.Engines.MCTS
 {
     public struct NodeInfo
     {
@@ -26,7 +26,7 @@ namespace Kalmia.Engines.MCTSEngine
 
     class Node
     {
-        const int MAX_CHILD_NODE_NUM = 60;
+        public const int MAX_CHILD_NODE_NUM = 60;
         public int ID;
         public Node[] ChildNodes = new Node[MAX_CHILD_NODE_NUM];
         public int ChildNodeNum = 0;
@@ -44,7 +44,7 @@ namespace Kalmia.Engines.MCTSEngine
     class NodePool
     {
         Node[] Nodes;
-        int Loc = 0;
+        int Loc = -1;
 
         public NodePool(int size)
         {
@@ -63,7 +63,12 @@ namespace Kalmia.Engines.MCTSEngine
             {
                 if (!this.Nodes[this.Loc].IsUsed)
                 {
-                    this.Nodes[this.Loc].IsUsed = true;
+                    var node = this.Nodes[this.Loc];
+                    node.ChildNodeNum = 0;
+                    node.ScoreSum = 0.0f;
+                    node.SimulationCount = 0;
+                    node.IsTerminated = false;
+                    node.IsUsed = true;
                     return this.Nodes[this.Loc];
                 }
 
@@ -88,6 +93,17 @@ namespace Kalmia.Engines.MCTSEngine
                 return;
             node.IsUsed = false;
             this.Nodes[node.ID] = node;
+        }
+
+        public void Clear()
+        {
+            if (this.Loc == -1)
+                return;
+
+            this.Loc = -1;
+            for (var i = 0; i < this.Nodes.Length; i++)
+                if (this.Nodes[i].IsUsed)
+                    this.Nodes[i].IsUsed = false;
         }
     }
 
@@ -114,6 +130,7 @@ namespace Kalmia.Engines.MCTSEngine
 
         public void SetRoot(Board board)
         {
+            this.NodePool.Clear();
             this.RootNode = this.NodePool.GetNode();
             this.RootNode.Board = board.ToFastBoard();
             this.RootNode.Move.Turn = board.Turn;
@@ -121,10 +138,52 @@ namespace Kalmia.Engines.MCTSEngine
             Expand(this.RootNode); ;
         }
 
+        public bool UpdateRoot(Move move)
+        {
+            if (this.RootNode == null)
+                return false;
+
+            this.RootNode.Board.CopyTo(this.BOARD);
+            if (!this.BOARD.IsLegalMove(move))
+                return false;
+            this.BOARD.Update(move);
+            return UpdateRoot(this.BOARD);
+        }
+
+        public bool UpdateRoot(Board board)     
+        {
+            return UpdateRoot(board.ToFastBoard());
+        }
+
+        public bool UpdateRoot(FastBoard board)     // boardを持つ子ノードが存在すれば、それをルートノードに設定し、不要なサブツリーは破棄する.
+        {
+            if (this.RootNode == null)
+                return false;
+
+            var idx = -1;
+            for (var i = 0; i < this.RootNode.ChildNodeNum; i++)
+                if (this.RootNode.ChildNodes[i].Board.EqualTo(board))
+                    idx = i;
+            if (idx == -1)
+                return false;
+
+            var newRoot = this.RootNode.ChildNodes[idx];
+            for (var i = idx; i < this.RootNode.ChildNodeNum - 1; i++)
+                this.RootNode.ChildNodes[i] = this.RootNode.ChildNodes[i + 1];
+            this.RootNode.ChildNodeNum -= 1;
+
+            DeleteNodes(this.RootNode);
+            this.RootNode = newRoot;
+            if (this.RootNode.ChildNodeNum == 0)
+                Expand(this.RootNode);
+            return true;
+        }
+
         public SearchResult Search(int maxSimCount, int timeLimit)
         {
             if (this.RootNode == null)
                 throw new NullReferenceException("Root node must be initalized before searching.");
+
             var startTime = Environment.TickCount;
             var simCount = 0;
             while (simCount < maxSimCount && (Environment.TickCount - startTime) < timeLimit)
@@ -140,6 +199,14 @@ namespace Kalmia.Engines.MCTSEngine
             for (var i = 0; i < result.ChildNodesInfo.Length; i++)
                 result.ChildNodesInfo[i] = new NodeInfo(this.RootNode.ChildNodes[i]);
             return result;
+        }
+
+        void DeleteNodes(Node node)     // 再帰的にノードを破棄
+        {
+            if (node.ChildNodeNum != 0)
+                for (var i = 0; i < node.ChildNodeNum; i++)
+                    DeleteNodes(node.ChildNodes[i]);
+            this.NodePool.ReturnNodeToPool(node);
         }
 
         float VisitNode(Node node)
@@ -170,6 +237,14 @@ namespace Kalmia.Engines.MCTSEngine
                 return WIN_SCORE - score;
             }
 
+            GameResult result;
+            if ((result = node.Board.GetResult(node.Board.Turn)) != GameResult.NotEnd)
+            {
+                node.FixedScore = GetScore(result);
+                node.IsTerminated = true;
+                return WIN_SCORE - node.FixedScore;
+            }
+
             score = Rollout(node.Board);
             UpdateNodeScore(node, score);
             return WIN_SCORE - score;
@@ -185,7 +260,7 @@ namespace Kalmia.Engines.MCTSEngine
                 childNode.Move = this.MOVES[i];
                 node.Board.CopyTo(this.BOARD);
                 this.BOARD.Update(childNode.Move);
-                this.BOARD.CopyTo(node.Board);
+                this.BOARD.CopyTo(childNode.Board);
                 node.ChildNodes[i] = childNode;
             }
         }
@@ -230,7 +305,7 @@ namespace Kalmia.Engines.MCTSEngine
             for(var i = 0; i < nodeNum; i++)
             {
                 var node = nodes[i];
-                node.UCBScore = node.Value + UCB(node.SimulationCount, simCountSum);
+                node.UCBScore = (WIN_SCORE - node.Value) + UCB(node.SimulationCount, simCountSum);
             }
         }
 

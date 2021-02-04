@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Kalmia": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Users\\admin\\source\\repos\\ReversiGUI\\ReversiGUI\\ReversiGUI\\bin\\Debug\\netcoreapp3.1\\ReversiGUI.exe",
+      "nativeDebugging": false
+    }
+  }
+}

@@ -2,10 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
-using System.Text;
-using Kalmia.ReversiTextProtocol;
 
 namespace Kalmia
 {
@@ -144,7 +141,7 @@ namespace Kalmia
                 Move pass;
                 pass.Turn = turn;
                 pass.Position = 0;
-                return Move(pass);
+                return Update(pass);
             }
 
             if (posX < 0 || posX > 7)
@@ -156,10 +153,10 @@ namespace Kalmia
             Move move;
             move.Turn = turn;
             move.Position = 1UL << posX + posY * BOARD_SIZE;
-            return Move(move);
+            return Update(move);
         }
 
-        public bool Move(Move move)
+        public bool Update(Move move)
         {
             if (move.Turn != this.Turn)
                 return false;

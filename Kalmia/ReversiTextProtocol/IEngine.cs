@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace Kalmia.ReversiTextProtocol
 {
@@ -9,7 +7,7 @@ namespace Kalmia.ReversiTextProtocol
         void Quit();
         string GetName();
         string GetVersion();
-        void ClearBoard(InitialPosition initPosition);
+        void ClearBoard(InitialPosition initPos);
         void Play(Color color, int posX, int posY);
         void Put(Color color, int posX, int posY);
         List<(int x, int y)> SetHandicap(int num);
