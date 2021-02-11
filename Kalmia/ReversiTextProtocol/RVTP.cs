@@ -290,7 +290,7 @@ namespace Kalmia.ReversiTextProtocol
 
         void ExecuteOriginalCommand(string[] args)
         {
-            ExecuteCommand(int.Parse(args[0]), () => this.ENGINE.ExecuteOriginalCommand(args[2], args));
+            ExecuteCommand(int.Parse(args[0]), () => this.ENGINE.ExecuteOriginalCommand(args[1], args));
         }
 
         void ExecuteCommand(int id, Func<string> command)

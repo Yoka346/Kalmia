@@ -9,21 +9,21 @@ namespace Kalmia
         public const int GRID_NUM = BOARD_SIZE * BOARD_SIZE;
         public const int MAX_MOVE_NUM = 46;     // 1つの局面に現れる合法手数は少なくとも46手以下.
 
-        ulong BlackBoard;
-        ulong WhiteBoard;
+        ulong blackBoard;
+        ulong whiteBoard;
         public Color Turn { get; private set; }
 
-        bool IsLegalPatSolved = false;
-        ulong LegalPat;     // 合法手のビットボード
+        bool isLegalPatSolved = false;
+        ulong legalPat;     // 合法手のビットボード
 
-        int PassCount = 0;
+        int passCount = 0;
 
         public FastBoard() : this(0UL, 0UL, Color.Black) { }
 
         public FastBoard(ulong blackBoard, ulong whiteBoard, Color turn)
         {
-            this.BlackBoard = blackBoard;
-            this.WhiteBoard = whiteBoard;
+            this.blackBoard = blackBoard;
+            this.whiteBoard = whiteBoard;
             this.Turn = turn;
         }
 
@@ -38,22 +38,22 @@ namespace Kalmia
             {
                 if (this.Turn == Color.Black)
                 {
-                    var revPat = CalcRevPat(move.Position, this.BlackBoard, this.WhiteBoard);
-                    this.BlackBoard ^= move.Position | revPat;
-                    this.WhiteBoard ^= revPat;
+                    var revPat = CalcRevPat(move.Position, this.blackBoard, this.whiteBoard);
+                    this.blackBoard ^= move.Position | revPat;
+                    this.whiteBoard ^= revPat;
                 }
                 else
                 {
-                    var revPat = CalcRevPat(move.Position, this.WhiteBoard, this.BlackBoard);
-                    this.WhiteBoard ^= move.Position | revPat;
-                    this.BlackBoard ^= revPat;
+                    var revPat = CalcRevPat(move.Position, this.whiteBoard, this.blackBoard);
+                    this.whiteBoard ^= move.Position | revPat;
+                    this.blackBoard ^= revPat;
                 }
-                this.PassCount = 0;
+                this.passCount = 0;
             }
             else
-                this.PassCount++;
+                this.passCount++;
 
-            this.IsLegalPatSolved = false;
+            this.isLegalPatSolved = false;
             this.Turn = (Color)(-(int)this.Turn);
         }
 
@@ -84,17 +84,17 @@ namespace Kalmia
 
         public int GetDiscCount(Color color)
         {
-            return (int)((color == Color.Black) ? PopCount(this.BlackBoard) : PopCount(this.WhiteBoard));
+            return (int)((color == Color.Black) ? PopCount(this.blackBoard) : PopCount(this.whiteBoard));
         }
 
         public int GetBlankCount()
         {
-            return (int)PopCount(~(this.BlackBoard | this.WhiteBoard));
+            return (int)PopCount(~(this.blackBoard | this.whiteBoard));
         }
 
         public GameResult GetResult(Color turn)
         {
-            if (this.PassCount == 2)
+            if (this.passCount == 2)
             {
                 var firstCount = GetDiscCount(Color.Black);
                 var secondCount = GetDiscCount(Color.White);
@@ -109,25 +109,25 @@ namespace Kalmia
 
         public void PutDisc(Color turn, int posX, int posY)
         {
-            this.IsLegalPatSolved = false;
+            this.isLegalPatSolved = false;
             var putPat = 1UL << posX + posY * BOARD_SIZE;
             if (turn == Color.Black)
-                this.BlackBoard |= putPat;
+                this.blackBoard |= putPat;
             else
-                this.WhiteBoard |= putPat;
+                this.whiteBoard |= putPat;
         }
 
         public bool EqualTo(FastBoard board)
         {
-            return board.BlackBoard == this.BlackBoard && board.WhiteBoard == this.WhiteBoard && board.Turn == this.Turn;
+            return board.blackBoard == this.blackBoard && board.whiteBoard == this.whiteBoard && board.Turn == this.Turn;
         }
 
         public void CopyTo(FastBoard board)
         {
             board.Turn = this.Turn;
-            board.BlackBoard = this.BlackBoard;
-            board.WhiteBoard = this.WhiteBoard;
-            board.PassCount = this.PassCount;
+            board.blackBoard = this.blackBoard;
+            board.whiteBoard = this.whiteBoard;
+            board.passCount = this.passCount;
         }
 
         public object Clone()
@@ -139,14 +139,14 @@ namespace Kalmia
 
         ulong GetLegalPat()
         {
-            if (this.IsLegalPatSolved)
-                return this.LegalPat;
+            if (this.isLegalPatSolved)
+                return this.legalPat;
             if (this.Turn == Color.Black)
-                this.LegalPat = CalcLegalPat(this.BlackBoard, this.WhiteBoard);
+                this.legalPat = CalcLegalPat(this.blackBoard, this.whiteBoard);
             else
-                this.LegalPat = CalcLegalPat(this.WhiteBoard, this.BlackBoard);
-            this.IsLegalPatSolved = true;
-            return this.LegalPat;
+                this.legalPat = CalcLegalPat(this.whiteBoard, this.blackBoard);
+            this.isLegalPatSolved = true;
+            return this.legalPat;
         }
 
         static ulong CalcRevPat(ulong putPat, ulong playerBoard, ulong opponentBoard)

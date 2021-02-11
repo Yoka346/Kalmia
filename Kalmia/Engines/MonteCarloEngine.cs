@@ -63,7 +63,7 @@ namespace Kalmia.Engines
                 this.Board.ChangeCurrentTurn(color);
             try
             {
-                if (!this.Board.Move(color, posX, posY))
+                if (!this.Board.Update(color, posX, posY))
                     throw new RVTPException("illegal move", false);
             }
             catch (ArgumentOutOfRangeException)
