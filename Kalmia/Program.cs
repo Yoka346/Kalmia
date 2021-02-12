@@ -1,4 +1,5 @@
-﻿using Kalmia.Engines.MCTS;
+﻿using Kalmia.Engines;
+using Kalmia.Engines.MCTS;
 using Kalmia.ReversiTextProtocol;
 
 namespace Kalmia

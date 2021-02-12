@@ -37,6 +37,7 @@ namespace Kalmia
     public class Board
     {
         public const int BOARD_SIZE = 8;
+        public const int MAX_MOVE_NUM = 46;
 
         static readonly ReadOnlyCollection<(int x, int y)> HANDICAP_POSITIONS;
 

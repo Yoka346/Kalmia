@@ -285,9 +285,9 @@ namespace Kalmia.Engines.MCTS
             if (childNodeNum == 1 || simCountSum == 0)
                 return childNodes[0];
 
-            var sqrt2lnSimCountSum = MathF.Sqrt(2.0f * FastMath.Log(simCountSum));
+            var twolnSimCountSum = 2.0f * FastMath.Log(simCountSum);
             var selectedNode = childNodes[0];
-            var maxUCBScore = (WIN_SCORE - selectedNode.Value) + sqrt2lnSimCountSum * MathF.Sqrt(1.0f / selectedNode.SimulationCount);
+            var maxUCBScore = (WIN_SCORE - selectedNode.Value) + MathF.Sqrt(twolnSimCountSum / selectedNode.SimulationCount);
             Node childNode;
             for(var i = 0; i < childNodeNum; i++)
             {
@@ -295,7 +295,7 @@ namespace Kalmia.Engines.MCTS
                 if (childNode.SimulationCount == 0)     // シミュレーション回数が0のノードは必ずシミュレーションする.
                     return childNode;
 
-                var ucbScore = (WIN_SCORE - childNode.Value) + sqrt2lnSimCountSum * MathF.Sqrt(1.0f / childNode.SimulationCount);
+                var ucbScore = (WIN_SCORE - childNode.Value) + MathF.Sqrt(twolnSimCountSum / childNode.SimulationCount);
                 if(ucbScore > maxUCBScore)
                 {
                     selectedNode = childNode;

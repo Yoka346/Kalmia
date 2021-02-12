@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using Kalmia.ReversiTextProtocol;
 
 namespace Kalmia.Engines.MCTS
@@ -15,8 +14,8 @@ namespace Kalmia.Engines.MCTS
         const int EXPANSION_THRESHOLD = 40;
         const int NODE_POOL_SIZE = 1000000;
         const int ITERATION_COUNT = 32000;
-        const int MAX_SIM_COUNT = 100000000;
-        const int TIME_LIMIT = 3000;
+        const int MAX_SIM_COUNT = 32000;
+        const int TIME_LIMIT = 1000;
 
         Board board;
         Stack<Board> boardHistory = new Stack<Board>();

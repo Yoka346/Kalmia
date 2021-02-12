@@ -13,7 +13,7 @@ namespace Kalmia.Engines
 
         readonly int PLAYOUT_NUM;
         readonly int THREAD_NUM;
-        Board Board;
+        Board board;
         Stack<Board> BoardHistory = new Stack<Board>();
         readonly Xorshift[] RAND;
 
@@ -33,7 +33,7 @@ namespace Kalmia.Engines
                 this.BOARD_CACHE[threadID] = new Board();
                 this.MOVES_CACHE[threadID] = new Move[Board.BOARD_SIZE * Board.BOARD_SIZE];
             }
-            this.Board = new Board();
+            this.board = new Board();
         }
 
         public void Quit()
@@ -53,17 +53,17 @@ namespace Kalmia.Engines
 
         public void ClearBoard(InitialPosition initPosition)
         {
-            this.Board = new Board(Color.Black, initPosition);
+            this.board = new Board(Color.Black, initPosition);
             this.BoardHistory.Clear();
         }
 
         public void Play(Color color,int posX,int posY)
         {
-            if (color != this.Board.Turn)
-                this.Board.ChangeCurrentTurn(color);
+            if (color != this.board.Turn)
+                this.board.ChangeCurrentTurn(color);
             try
             {
-                if (!this.Board.Update(color, posX, posY))
+                if (!this.board.Update(color, posX, posY))
                     throw new RVTPException("illegal move", false);
             }
             catch (ArgumentOutOfRangeException)
@@ -76,7 +76,7 @@ namespace Kalmia.Engines
         {
             try
             {
-                this.Board.PutDisc(color, posX, posY);
+                this.board.PutDisc(color, posX, posY);
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -92,7 +92,7 @@ namespace Kalmia.Engines
         {
             try
             {
-                return this.Board.SetHandicap(num);
+                return this.board.SetHandicap(num);
             }
             catch (IndexOutOfRangeException)
             {
@@ -121,18 +121,18 @@ namespace Kalmia.Engines
 
         public string GenerateMove(Color color)
         {
-            if (color != this.Board.Turn)
-                this.Board.ChangeCurrentTurn(color);
+            if (color != this.board.Turn)
+                this.board.ChangeCurrentTurn(color);
             var move = GetNextMove(color);
-            this.BoardHistory.Push((Board)this.Board.Clone());
-            this.Board.Update(move);
+            this.BoardHistory.Push((Board)this.board.Clone());
+            this.board.Update(move);
             return Board.MoveToString(move);
         }
 
         public string RegGenerateMove(Color color)
         {
-            if (color != this.Board.Turn)
-                this.Board.ChangeCurrentTurn(color);
+            if (color != this.board.Turn)
+                this.board.ChangeCurrentTurn(color);
             return Board.MoveToString(GetNextMove(color));
         }
 
@@ -140,7 +140,7 @@ namespace Kalmia.Engines
         {
             if (this.BoardHistory.Count == 0)
                 throw new RVTPException("cannot undo", false);
-            this.Board = this.BoardHistory.Pop();
+            this.board = this.BoardHistory.Pop();
         }
 
         public void SetTime(int mainTime,int countdownTime,int countdownNum)
@@ -155,13 +155,13 @@ namespace Kalmia.Engines
 
         public string GetFinalScore()
         {
-            switch (this.Board.GetResult(Color.Black))
+            switch (this.board.GetResult(Color.Black))
             {
                 case GameResult.Win:
-                    return $"B+{this.Board.GetDiscCount(Color.Black) - this.Board.GetDiscCount(Color.White)}";
+                    return $"B+{this.board.GetDiscCount(Color.Black) - this.board.GetDiscCount(Color.White)}";
 
                 case GameResult.Lose:
-                    return $"W+{this.Board.GetDiscCount(Color.White) - this.Board.GetDiscCount(Color.Black)}";
+                    return $"W+{this.board.GetDiscCount(Color.White) - this.board.GetDiscCount(Color.Black)}";
 
                 case GameResult.Draw:
                     return "0";
@@ -173,7 +173,7 @@ namespace Kalmia.Engines
 
         public Color GetColor(int posX,int posY)
         {
-            return this.Board.GetColor(posX, posY);
+            return this.board.GetColor(posX, posY);
         }
 
         public string[] GetOriginalCommands()
@@ -188,14 +188,15 @@ namespace Kalmia.Engines
 
         Move GetNextMove(Color color)
         {
-            var moves = new Move[this.Board.GetBlankNum()];
-            var movesNum = this.Board.GetNextMoves(moves);
+            var moves = new Move[Board.MAX_MOVE_NUM];
+            var movesNum = this.board.GetNextMoves(moves);
             var values = new float[movesNum];
 
             for (var i = 0; i < movesNum; i++)
             {
                 var board = new Board();
-                this.Board.CopyTo(board);
+                this.board.CopyTo(board);
+                board.Update(moves[i]);
                 values[i] = Playout(color, board);
             }
 
