@@ -33,7 +33,7 @@ namespace Kalmia.Engines.MCTS
 
     class Node
     {
-        public const int MAX_CHILD_NODE_NUM = 60;
+        public const int MAX_CHILD_NODE_NUM = 46;
         public int ID;
         public NodeType Type;
         public Node[] ChildNodes = new Node[MAX_CHILD_NODE_NUM];
@@ -44,6 +44,7 @@ namespace Kalmia.Engines.MCTS
         public float ScoreSum = 0.0f;
         public float Value = 0.0f;
         public int SimulationCount = 0;
+        public int ChildSimulationCountSum = 0;
         public float FixedScore = 0.0f;
         public bool IsUsed = false;
     }
@@ -74,6 +75,7 @@ namespace Kalmia.Engines.MCTS
                     node.ChildNodeNum = 0;
                     node.ScoreSum = 0.0f;
                     node.SimulationCount = 0;
+                    node.ChildSimulationCountSum = 0;
                     node.Type = NodeType.NotDefinite;
                     node.IsUsed = true;
                     return this.nodes[this.loc++];
@@ -234,6 +236,7 @@ namespace Kalmia.Engines.MCTS
             if (node.ChildNodeNum != 0)
             {
                 score = VisitNode(SelectChildNode(node));
+                node.ChildSimulationCountSum++;
                 UpdateNodeScore(node, score);
                 return WIN_SCORE - score;
             }
@@ -242,6 +245,7 @@ namespace Kalmia.Engines.MCTS
             {
                 Expand(node);
                 score = VisitNode(SelectChildNode(node));
+                node.ChildSimulationCountSum++;
                 UpdateNodeScore(node, score);
                 return WIN_SCORE - score;
             }
@@ -277,9 +281,9 @@ namespace Kalmia.Engines.MCTS
             return GetScore(result);
         }
 
-        static Node SelectChildNode(Node parent)
+        Node SelectChildNode(Node parent)
         {
-            var simCountSum = parent.SimulationCount - 1;
+            var simCountSum = parent.ChildSimulationCountSum;  
             var childNodes = parent.ChildNodes;
             var childNodeNum = parent.ChildNodeNum;
             if (childNodeNum == 1 || simCountSum == 0)
