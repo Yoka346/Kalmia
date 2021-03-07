@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{D5CB164A-77A6-49D5-ACD0-CCFC85521686}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,18 @@ Global
 		{B3FD4B6A-6AFA-4F1E-9E65-4FA8C85F0CBA}.Release|x64.Build.0 = Release|x64
 		{B3FD4B6A-6AFA-4F1E-9E65-4FA8C85F0CBA}.Release|x86.ActiveCfg = Release|x86
 		{B3FD4B6A-6AFA-4F1E-9E65-4FA8C85F0CBA}.Release|x86.Build.0 = Release|x86
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Debug|x64.Build.0 = Debug|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Debug|x86.Build.0 = Debug|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Release|x64.ActiveCfg = Release|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Release|x64.Build.0 = Release|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Release|x86.ActiveCfg = Release|Any CPU
+		{D5CB164A-77A6-49D5-ACD0-CCFC85521686}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

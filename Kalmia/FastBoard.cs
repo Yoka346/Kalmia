@@ -133,42 +133,133 @@ namespace Kalmia
 
     public struct BitBoard
     {
-        public Vector128<ulong> Data;
-        public Color Turn;
+        const int BOARD_SIZE = 8;
+        static readonly Vector128<byte>[] ROTATE_RIGHT8_SHUFFLE_TABLE = new Vector128<byte>[8];
+        static readonly Vector256<byte>[] ROTATE_RIGHT8_SHUFFLE_TABLE_256 = new Vector256<byte>[8];
 
-        public static UInt64_4 BroadcastBlack(BitBoard bitBoard)
+        static BitBoard()
+        {
+            for (var i = 0; i < 8; i++)
+            {
+                ROTATE_RIGHT8_SHUFFLE_TABLE[i] = Vector128.Create(
+                (byte)((7 + i) % 8 + 8),
+                (byte)((6 + i) % 8 + 8),
+                (byte)((5 + i) % 8 + 8),
+                (byte)((4 + i) % 8 + 8),
+                (byte)((3 + i) % 8 + 8),
+                (byte)((2 + i) % 8 + 8),
+                (byte)((1 + i) % 8 + 8),
+                (byte)((0 + i) % 8 + 8),
+                (byte)((7 + i) % 8),
+                (byte)((6 + i) % 8),
+                (byte)((5 + i) % 8),
+                (byte)((4 + i) % 8),
+                (byte)((3 + i) % 8),
+                (byte)((2 + i) % 8),
+                (byte)((1 + i) % 8),
+                (byte)((0 + i) % 8));
+
+                ROTATE_RIGHT8_SHUFFLE_TABLE_256[i] = Vector256.Create(
+                    (byte)((7 + i) % 8 + 24),
+                    (byte)((6 + i) % 8 + 24),
+                    (byte)((5 + i) % 8 + 24),
+                    (byte)((4 + i) % 8 + 24),
+                    (byte)((3 + i) % 8 + 24),
+                    (byte)((2 + i) % 8 + 24),
+                    (byte)((1 + i) % 8 + 24),
+                    (byte)((0 + i) % 8 + 24),
+                    (byte)((7 + i) % 8 + 16),
+                    (byte)((6 + i) % 8 + 16),
+                    (byte)((5 + i) % 8 + 16),
+                    (byte)((4 + i) % 8 + 16),
+                    (byte)((3 + i) % 8 + 16),
+                    (byte)((2 + i) % 8 + 16),
+                    (byte)((1 + i) % 8 + 16),
+                    (byte)((0 + i) % 8 + 16),
+                    (byte)((7 + i) % 8 + 8),
+                    (byte)((6 + i) % 8 + 8),
+                    (byte)((5 + i) % 8 + 8),
+                    (byte)((4 + i) % 8 + 8),
+                    (byte)((3 + i) % 8 + 8),
+                    (byte)((2 + i) % 8 + 8),
+                    (byte)((1 + i) % 8 + 8),
+                    (byte)((0 + i) % 8 + 8),
+                    (byte)((7 + i) % 8),
+                    (byte)((6 + i) % 8),
+                    (byte)((5 + i) % 8),
+                    (byte)((4 + i) % 8),
+                    (byte)((3 + i) % 8),
+                    (byte)((2 + i) % 8),
+                    (byte)((1 + i) % 8),
+                    (byte)((0 + i) % 8));
+            }
+        }
+
+        public Vector128<ulong> Data;
+
+        public BitBoard(Vector128<ulong> data)
+        {
+            this.Data = data;
+        }
+
+        public static explicit operator Vector128<ulong>(BitBoard bitBoard)
+        {
+            return bitBoard.Data;
+        }
+
+        public static explicit operator BitBoard(Vector128<ulong> data)
+        {
+            return new BitBoard(data);
+        }
+
+        public BitBoard Update(ref BitBoard bitBoard, Move move)
+        {
+            if (move.Position == Move.PASS)
+                return GetSwappedBoard(ref bitBoard);
+            var flipPat = GetFlipPat(ref bitBoard, move.Position);
+            return (BitBoard)Sse2.Or(Sse2.Xor(GetSwappedBoard(ref bitBoard).Data, flipPat), Vector128.Create(1UL << move.Position, 0));
+        }
+
+        public ulong GetLegalMovesPat(ref BitBoard bitBoard)
+        {
+            return (GetLegalMovesPatHorizontal(ref bitBoard) | GetLegalMovesPatDiagonal(ref bitBoard) & ~GetDiscsPat(ref bitBoard));
+        }
+
+        public BitBoard Update(ref BitBoard bitBoard, int posX, int posY)
+        {
+            if (posX == -1 && posY == -1)
+                return GetSwappedBoard(ref bitBoard);
+            return Update(ref bitBoard, new Move(posX + posY * BOARD_SIZE));
+        }
+
+        static BitBoard GetSwappedBoard(ref BitBoard bitBoard)
+        {
+            return new BitBoard(Ssse3.AlignRight(bitBoard.Data, bitBoard.Data, 8));
+        }
+
+        static UInt64_4 BroadcastCurrentPlayer(ref BitBoard bitBoard)
         {
             UInt64_4 ret;
             ret.Data = Avx2.BroadcastScalarToVector256(bitBoard.Data);
             return ret;
         }
 
-        public static UInt64_4 BroadCastWhite(BitBoard bitBoard)
+        static UInt64_4 BroadcastOpponentPlayer(ref BitBoard bitBoard)
         {
             UInt64_4 ret;
             ret.Data = Avx2.Permute4x64(Vector256.Create(bitBoard.Data, bitBoard.Data), 0x55);
             return ret;
         }
 
-        public static UInt64_4 BroadcastCurrentColor(BitBoard bitBoard)
-        {
-            return (bitBoard.Turn == Color.Black) ? BroadcastBlack(bitBoard) : BroadCastWhite(bitBoard);
-        }
-
-        public static UInt64_4 BroadcastNotCurrentColor(BitBoard bitBoard)
-        {
-            return (bitBoard.Turn != Color.Black) ? BroadcastBlack(bitBoard) : BroadCastWhite(bitBoard);
-        }
-
-        public static ulong GetDiscsPat(BitBoard bitBoard)
+        static ulong GetDiscsPat(ref BitBoard bitBoard)
         {
             return Sse2.X64.ConvertToUInt64(Sse2.Or(Ssse3.AlignRight(bitBoard.Data, bitBoard.Data, 8), bitBoard.Data));
         }
 
-        public static Vector128<ulong> GetFlipPat(BitBoard bitBoard, int pos)
+        static Vector128<ulong> GetFlipPat(ref BitBoard bitBoard, int pos)
         {
-            var current = BroadcastBlack(bitBoard);
-            var opponent = BroadCastWhite(bitBoard);
+            var current = BroadcastCurrentPlayer(ref bitBoard);
+            var opponent = BroadcastOpponentPlayer(ref bitBoard);
             var yzw = new UInt64_4(0xFFFFFFFFFFFFFFFF, 0x7E7E7E7E7E7E7E7E, 0x7E7E7E7E7E7E7E7E, 0x7E7E7E7E7E7E7E7E);
             var om = opponent & yzw;
             var mask = new UInt64_4(0x0080808080808080, 0x7F00000000000000, 0x0102040810204000, 0x0040201008040201);
@@ -182,51 +273,268 @@ namespace Kalmia
             return UInt64_4.Hor(flipped);
         }
 
-        public static Vector128<ulong> GetLegalMovePat(BitBoard bitBoard)
+        static Vector128<ulong> GetLegalMovesPat128(ref BitBoard bitBoard)
         {
-            var doubleBitBoard = Vector256.Create(bitBoard.Data, bitBoard.Data);
-            var tmp = (GetLegalMovePatHorizontal(doubleBitBoard) | GetLegalMovePatVertical(doubleBitBoard) | GetLegalMovePatDiagonal(doubleBitBoard));
-            return Avx.AndNot(GetDiscsPat(doubleBitBoard), tmp);
+            var doubleBitBoard = new DoubleBitBoard(bitBoard);
+            var tmp = Sse2.Or(Sse2.Or(GetLegalMovesPatHorizontal(ref doubleBitBoard), GetLegalMovesPatVertical(ref doubleBitBoard)), GetLegalMovesPatDiagonal(ref doubleBitBoard));
+            return Sse2.AndNot(GetDiscsPat(ref doubleBitBoard), tmp);
         }
 
-        static Vector128<ulong> GetLegalMovePatHorizontal(Vector256<ulong> doubleBitBoard)
+        static ulong GetLegalMovesPatHorizontal(ref BitBoard bitBoard)
         {
 
         }
 
-        static Vector256<ulong> GetLegalPatBackwardP4(Vector256<ulong> doubleBitBoard_0, Vector256<ulong> doubleBitBoard_1)
+        static Vector128<ulong> GetLegalMovesPatHorizontal(ref DoubleBitBoard doubleBitBoard)
         {
-            var b_0 = Avx2.UnpackLow(doubleBitBoard_0, doubleBitBoard_1);
+            var tmp0 = GetMirrorHorizontalBoard(ref doubleBitBoard);
+            var tmp1 = GetLegalPatBackwardP4(ref doubleBitBoard, ref tmp0);
+            tmp1.Data = Avx2.Permute4x64(tmp1.Data, 0xd8);
+            var tmp2 = tmp1.Board_1;
+            return Sse2.Or(doubleBitBoard.Board_0.Data, GetMirrorHorizontalBoard(ref tmp2).Data);
+        }
+
+        static Vector128<ulong> GetLegalMovesPatVertical(ref DoubleBitBoard doubleBitBoard)
+        {
+            var tmp0 = FlipDiagonalA1H8(ref doubleBitBoard);
+            var tmp1 = (BitBoard)GetLegalMovesPatHorizontal(ref tmp0);
+            return FlipDiagonalA1H8(ref tmp1).Data;
+        }
+
+        static ulong GetLegalMovesPatDiagonal(ref BitBoard bitBoard)
+        {
+
+        }
+
+        static Vector128<ulong> GetLegalMovesPatDiagonal(ref DoubleBitBoard doubleBitBoard)
+        {
+            return RotateRight8(
+                Sse2.Or(GetLegalMovesDiagonalA8H1(ref doubleBitBoard),
+                GetLegalMovesDiagonalA8H1(ref doubleBitBoard)), 1);
+        }
+
+        static Vector128<ulong> GetLegalMovesDiagonalA8H1(ref DoubleBitBoard doubleBitBoard)
+        {
+            var prot45DoubleBitBoard = PseudoRotate45Clockwise(ref doubleBitBoard);
+            var mask64 = 0x80C0E0F0F8FCFEFFUL;
+            var mask128 = Vector128.Create(mask64);
+            var mask256 = Vector256.Create(mask64);
+            var tmp0 = (DoubleBitBoard)Avx2.And(mask256, prot45DoubleBitBoard.Data);
+            var tmp1 = (DoubleBitBoard)Avx2.AndNot(mask256, prot45DoubleBitBoard.Data);
+            var res = (BitBoard)Sse2.Or(Sse2.And(mask128, GetLegalMovesPatHorizontal(ref tmp0)),
+                Sse2.AndNot(mask128, GetLegalMovesPatHorizontal(ref tmp1)));
+            return PseudoRotate45AntiClockwise(ref res).Data;
+        }
+
+        static BitBoard GetLegalPatBackwardP4(BitBoard bitBoard0, BitBoard bitBoard1)
+        {
+
+        }
+
+        static DoubleBitBoard GetLegalPatBackwardP4(ref DoubleBitBoard doubleBitBoard_0, ref DoubleBitBoard doubleBitBoard_1)
+        {
+            var b_0 = Avx2.UnpackLow(doubleBitBoard_0.Data, doubleBitBoard_1.Data);
             var b_1 = Avx2.Add(b_0, b_0);
-            var w = Avx2.UnpackHigh(doubleBitBoard_0, doubleBitBoard_1);
-            return Avx2.AndNot(Avx2.Or(b_1, w), Avx2.Add(b_1, w));
+            var w = Avx2.UnpackHigh(doubleBitBoard_0.Data, doubleBitBoard_1.Data);
+            return (DoubleBitBoard)Avx2.AndNot(Avx2.Or(b_1, w), Avx2.Add(b_1, w));
         }
 
-        static Vector128<ulong> GetDiscsPat(Vector256<ulong> doubleBitBoard)
+        static BitBoard GetMirrorHorizontalBoard(ref BitBoard bitBoard)
         {
-            var tmp = Avx2.Or(Avx2.AlignRight(doubleBitBoard, doubleBitBoard, 8), doubleBitBoard);
-            return Avx2.Permute4x64(tmp, 0x08).GetLower();
+
         }
 
-        Vector256<ulong> GetMirrorHorizontalBoard(Vector256<ulong> doubleBitBoard)
+        static DoubleBitBoard GetMirrorHorizontalBoard(ref DoubleBitBoard doubleBitBoard)
         {
             var mask_0 = Vector256.Create((byte)0x55).AsUInt64();
             var mask_1 = Vector256.Create((byte)0x33).AsUInt64();
             var mask_2 = Vector256.Create((byte)0x0f).AsUInt64();
-            doubleBitBoard = Avx2.Or(Avx2.And(Avx2.ShiftRightLogical(doubleBitBoard, 1), mask_0), Avx2.ShiftLeftLogical(Avx2.And(doubleBitBoard, mask_0), 1));
-            doubleBitBoard = Avx2.Or(Avx2.And(Avx2.ShiftRightLogical(doubleBitBoard, 2), mask_1), Avx2.ShiftLeftLogical(Avx2.And(doubleBitBoard, mask_1), 2));
-            doubleBitBoard = Avx2.Or(Avx2.And(Avx2.ShiftRightLogical(doubleBitBoard, 4), mask_2), Avx2.ShiftLeftLogical(Avx2.And(doubleBitBoard, mask_2), 4));
+            doubleBitBoard.Data = Avx2.Or(Avx2.And(Avx2.ShiftRightLogical(doubleBitBoard.Data, 1), mask_0), Avx2.ShiftLeftLogical(Avx2.And(doubleBitBoard.Data, mask_0), 1));
+            doubleBitBoard.Data = Avx2.Or(Avx2.And(Avx2.ShiftRightLogical(doubleBitBoard.Data, 2), mask_1), Avx2.ShiftLeftLogical(Avx2.And(doubleBitBoard.Data, mask_1), 2));
+            doubleBitBoard.Data = Avx2.Or(Avx2.And(Avx2.ShiftRightLogical(doubleBitBoard.Data, 4), mask_2), Avx2.ShiftLeftLogical(Avx2.And(doubleBitBoard.Data, mask_2), 4));
             return doubleBitBoard;
         }
+
+        static ulong FlipDiagonalA1H8(ulong bits)
+        {
+
+        }
+
+        static BitBoard FlipDiagonalA1H8(ref BitBoard bitBoard)
+        {
+            var mask_0 = Vector128.Create(0x5500).AsUInt64();
+            var mask_1 = Vector128.Create(0x33330000).AsUInt64();
+            var mask_2 = Vector128.Create(0x0f0f0f0f00000000UL);
+            var data = DeltaSwap(bitBoard.Data, mask_2, 28);
+            data = DeltaSwap(data, mask_1, 14);
+            return (BitBoard)DeltaSwap(data, mask_0, 7);
+        }
+
+        static DoubleBitBoard FlipDiagonalA1H8(ref DoubleBitBoard doubleBitBoard)
+        {
+            var mask_0 = Vector256.Create((ushort)0xaa00).AsUInt64();
+            var mask_1 = Vector256.Create(0xcccc0000U).AsUInt64();
+            var mask_2 = Vector256.Create(0xf0f0f0f000000000UL);
+            var data = DeltaSwap(doubleBitBoard.Data, mask_2, 36);
+            data = DeltaSwap(data, mask_1, 18);
+            return (DoubleBitBoard)DeltaSwap(data, mask_0, 9);
+        }
+
+        static BitBoard GetMirrorHorizontalBoard(ref BitBoard bitBoard)
+        {
+            var mask_0 = Vector128.Create(0x55).AsUInt64();
+            var mask_1 = Vector128.Create(0x33).AsUInt64();
+            var mask_2 = Vector128.Create(0x0f).AsUInt64();
+            bitBoard.Data = Sse2.Or(Sse2.And(Sse2.ShiftRightLogical(bitBoard.Data, 1), mask_0), Sse2.ShiftLeftLogical(Sse2.And(bitBoard.Data, mask_0), 1));
+            bitBoard.Data = Sse2.Or(Sse2.And(Sse2.ShiftRightLogical(bitBoard.Data, 2), mask_1), Sse2.ShiftLeftLogical(Sse2.And(bitBoard.Data, mask_1), 2));
+            bitBoard.Data = Sse2.Or(Sse2.And(Sse2.ShiftRightLogical(bitBoard.Data, 4), mask_2), Sse2.ShiftLeftLogical(Sse2.And(bitBoard.Data, mask_2), 4));
+            return bitBoard;
+        }
+
+        static BitBoard PseudoRotate45Clockwise(ref BitBoard bitBoard)
+        {
+            var mask_0 = Vector128.Create(0x55).AsUInt64();
+            var mask_1 = Vector128.Create(0x33).AsUInt64();
+            var mask_2 = Vector128.Create(0x0f).AsUInt64();
+            var data = Sse2.Xor(bitBoard.Data, Sse2.And(mask_0, Sse2.Xor(bitBoard.Data, RotateRight8(bitBoard.Data, 1))));
+            data = Sse2.Xor(data, Sse2.And(mask_1, Sse2.Xor(data, RotateRight8(data, 2))));
+            return (BitBoard)Sse2.Xor(data, Sse2.And(mask_2, Sse2.Xor(data, RotateRight8(data, 4))));
+        }
+
+        static DoubleBitBoard PseudoRotate45Clockwise(ref DoubleBitBoard doubleBitBoard)
+        {
+            var mask0 = Vector256.Create(0x55).AsUInt64();
+            var mask1 = Vector256.Create(0x33).AsUInt64();
+            var mask2 = Vector256.Create(0x0f).AsUInt64();
+            var data = Avx2.Xor(doubleBitBoard.Data, Avx2.And(mask0, Avx2.Xor(doubleBitBoard.Data, RotateRight8(doubleBitBoard.Data, 1))));
+            data = Avx2.Xor(data, Avx2.And(mask1, Avx2.Xor(data, RotateRight8(data, 2))));
+            return (DoubleBitBoard)Avx2.Xor(data, Avx2.And(mask2, Avx2.Xor(data, RotateRight8(data, 4))));
+        }
+
+        static BitBoard PseudoRotate45AntiClockwise(ref BitBoard bitBoard)
+        {
+            var mask_0 = Vector128.Create(0xaa).AsUInt64();
+            var mask_1 = Vector128.Create(0xcc).AsUInt64();
+            var mask_2 = Vector128.Create(0xf0).AsUInt64();
+            var data = Sse2.Xor(bitBoard.Data, Sse2.And(mask_0, Sse2.Xor(bitBoard.Data, RotateRight8(bitBoard.Data, 1))));
+            data = Sse2.Xor(data, Sse2.And(mask_1, Sse2.Xor(data, RotateRight8(data, 2))));
+            return (BitBoard)Sse2.Xor(data, Sse2.And(mask_2, Sse2.Xor(data, RotateRight8(data, 4))));
+        }
+
+        static DoubleBitBoard PseudoRotate45AntiClockwise(ref DoubleBitBoard doubleBitBoard)
+        {
+            var mask0 = Vector256.Create(0xaa).AsUInt64();
+            var mask1 = Vector256.Create(0xcc).AsUInt64();
+            var mask2 = Vector256.Create(0xf0).AsUInt64();
+            var data = Avx2.Xor(doubleBitBoard.Data, Avx2.And(mask0, Avx2.Xor(doubleBitBoard.Data, RotateRight8(doubleBitBoard.Data, 1))));
+            data = Avx2.Xor(data, Avx2.And(mask1, Avx2.Xor(data, RotateRight8(data, 2))));
+            return (DoubleBitBoard)Avx2.Xor(data, Avx2.And(mask2, Avx2.Xor(data, RotateRight8(data, 4))));
+        }
+
+        static Vector128<ulong> GetDiscsPat(ref DoubleBitBoard doubleBitBoard)
+        {
+            var tmp = Avx2.Or(Avx2.AlignRight(doubleBitBoard.Data, doubleBitBoard.Data, 8), doubleBitBoard.Data);
+            return Avx2.Permute4x64(tmp, 0x08).GetLower();
+        }
+
+        static Vector128<ulong> DeltaSwap(Vector128<ulong> bits, Vector128<ulong> mask, int delta)
+        {
+            var tmp = Sse2.And(mask, Sse2.Xor(bits, Sse2.ShiftLeftLogical(bits, (byte)delta)));
+            return Sse2.Xor(Sse2.Xor(bits, tmp), Sse2.ShiftRightLogical(tmp, (byte)delta));
+        }
+
+        static Vector256<ulong> DeltaSwap(Vector256<ulong> bits, Vector256<ulong> mask, int delta)
+        {
+            var tmp = Avx2.And(mask, Avx2.Xor(bits, Avx2.ShiftLeftLogical(bits, (byte)delta)));
+            return Avx2.Xor(Avx2.Xor(bits, tmp), Avx2.ShiftRightLogical(tmp, (byte)delta));
+        }
+
+        static Vector128<ulong> RotateRight8(Vector128<ulong> bits, int idx)
+        {
+            return Ssse3.Shuffle(bits.AsByte(), ROTATE_RIGHT8_SHUFFLE_TABLE[idx]).AsUInt64();
+        }
+
+        static Vector256<ulong> RotateRight8(Vector256<ulong> bits, int idx)
+        {
+            return Avx2.Shuffle(bits.AsByte(), ROTATE_RIGHT8_SHUFFLE_TABLE_256[idx]).AsUInt64();
+        }
+
+        static ulong RotateRight(ulong a, int shift)    // _rotr64 のソフトウェア実装
+        {
+            var ret = a;
+            var count = shift & 63;
+            for (var i = 0; i < count; i++)
+                ret = (ret >> 1) | ((ret & 1UL) << 63);
+            return ret;
+        }
+
+        static int MovePatToPos(ulong movePat)
+        {
+            var pos = 1;
+            var mask = 1UL;
+            while ((movePat & mask) == 0)
+                pos++;
+            return pos;
+        }
+    }
+
+    public struct DoubleBitBoard    // BitBoardを2つ並べたもの. 合法手生成の途中計算で用いる.
+    {
+        public Vector256<ulong> Data;
+        public BitBoard Board_0{ get{ return new BitBoard(this.Data.GetLower()); } }
+        public BitBoard Board_1 { get { return new BitBoard(this.Data.GetUpper()); } }
+
+        public ulong this[int i]
+        {
+            get
+            {
+                return this.Data.GetElement(i);
+            }
+        }
+
+        public DoubleBitBoard(BitBoard bitBoard) : this(bitBoard, bitBoard) { }
+
+        public DoubleBitBoard(BitBoard bitBoard_0, BitBoard bitBoard_1) : this(bitBoard_0.Data, bitBoard_1.Data) { }
+
+        public DoubleBitBoard(ulong currentPlayerBoard_0, ulong opponentPlayerBoard_0, ulong currentPlayerBoard_1, ulong opponentPlayerBoard_1)
+        {
+            this.Data = Vector256.Create(currentPlayerBoard_0, opponentPlayerBoard_0, currentPlayerBoard_1, opponentPlayerBoard_1);
+        }
+
+        public DoubleBitBoard(Vector256<ulong> data)
+        {
+            this.Data = data;
+        }
+
+        public DoubleBitBoard(Vector128<ulong> data)
+        {
+            this.Data = Vector256.Create(data, data);
+        }
+
+        public DoubleBitBoard(Vector128<ulong> data_0, Vector128<ulong> data_1)
+        {
+            this.Data = Vector256.Create(data_0, data_1);
+        }
+
+        public static explicit operator Vector256<ulong> (DoubleBitBoard doubleBitBoard)
+        {
+            return doubleBitBoard.Data;
+        }
+
+        public static explicit operator DoubleBitBoard(Vector256<ulong> data)
+        {
+            return new DoubleBitBoard(data);
+        }
+    }
 
     public class FastBoard : ICloneable      // 探索に用いる盤面. Boardクラスに比べて機能が省かれている.
     {
         public const int BOARD_SIZE = 8;
         public const int GRID_NUM = BOARD_SIZE * BOARD_SIZE;
-        public const int MAX_MOVE_NUM = 46;     // 1つの局面に現れる合法手数は少なくとも46手以下.
+        public const int MAX_MOVE_NUM = 46;     // 1つの局面に現れる合法手数は多くても46.
 
-        internal Vector128<ulong> bitboard;
-        public Color Turn { get; private set; }
+        BitBoard bitboard;
+        public Color Turn { get; }
 
         bool isLegalPatSolved = false;
         ulong legalPat;     // 合法手のビットボード
@@ -237,14 +545,16 @@ namespace Kalmia
 
         public FastBoard(ulong blackBoard, ulong whiteBoard, Color turn)
         {
-            this.blackBoard = blackBoard;
-            this.whiteBoard = whiteBoard;
             this.Turn = turn;
+            if (this.Turn == Color.Black)
+                this.bitboard = new BitBoard(Vector128.Create(blackBoard, whiteBoard));
+            else
+                this.bitboard = new BitBoard(Vector128.Create(whiteBoard, blackBoard));
         }
 
         public bool IsLegalMove(Move move)
         {
-            return move.Turn == this.Turn && PopCount(move.Position) == 1 && (move.Position & GetLegalPat()) != 0;
+            return move.Turn == this.Turn && (move.Position > 1 && move.Position < BOARD_SIZE * BOARD_SIZE) && ((move.Position & BitBoard.GetLegalMovesPat(ref this.bitboard)) != 0);
         }
 
         public void Update(Move move)
@@ -275,14 +585,14 @@ namespace Kalmia
         public int GetNextMoves(Move[] moves)
         {
             var legalPat = GetLegalPat();
-            if(legalPat == 0UL)
+            if (legalPat == 0UL)
             {
                 moves[0].Turn = this.Turn;
                 moves[0].Position = 0UL;
                 return 1;
             }
 
-            var mask = 1UL; 
+            var mask = 1UL;
             var count = 0;
             for (var i = 0; i < GRID_NUM; i++)
             {

@@ -131,7 +131,7 @@ namespace Kalmia.Engines.MCTS
             this.rootNode = this.nodePool.GetNode();
             this.rootNode.Board = board.ToFastBoard();
             this.rootNode.Move.Turn = board.Turn;
-            this.rootNode.Move.Position = 0UL;
+            this.rootNode.Move.Position = -1;
             Expand(this.rootNode); ;
         }
 

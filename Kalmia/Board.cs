@@ -30,8 +30,17 @@ namespace Kalmia
 
     public struct Move
     {
+        public const int PASS = -1;
         public Color Turn;
-        public ulong Position;
+        public int Position;
+
+        public Move(Color turn, int pos)
+        {
+            this.Turn = turn;
+            this.Position = pos;
+        }
+
+        public Move(int pos) : this(Color.Black, pos) { }
     }
 
     public class Board
@@ -141,7 +150,7 @@ namespace Kalmia
             {
                 Move pass;
                 pass.Turn = turn;
-                pass.Position = 0;
+                pass.Position = Move.PASS;
                 return Update(pass);
             }
 
@@ -153,7 +162,7 @@ namespace Kalmia
 
             Move move;
             move.Turn = turn;
-            move.Position = 1UL << posX + posY * BOARD_SIZE;
+            move.Position = posX + posY * BOARD_SIZE;
             return Update(move);
         }
 
@@ -162,21 +171,22 @@ namespace Kalmia
             if (move.Turn != this.Turn)
                 return false;
 
-            if (move.Position != 0)
+            if (move.Position != Move.PASS)
             {
-                if ((move.Position & GetLegalPat()) == 0)
+                var movePat = 1UL << move.Position;
+                if ((movePat & GetLegalPat()) == 0)
                     return false;
 
                 if (this.Turn == Color.Black)
                 {
-                    var revPat = CalcRevPat(move.Position, this.blackBoard, this.whiteBoard);
-                    this.blackBoard ^= move.Position | revPat;
+                    var revPat = CalcRevPat(movePat, this.blackBoard, this.whiteBoard);
+                    this.blackBoard ^= movePat | revPat;
                     this.whiteBoard ^= revPat;
                 }
                 else
                 {
-                    var revPat = CalcRevPat(move.Position, this.whiteBoard, this.blackBoard);
-                    this.whiteBoard ^= move.Position | revPat;
+                    var revPat = CalcRevPat(movePat, this.whiteBoard, this.blackBoard);
+                    this.whiteBoard ^= movePat | revPat;
                     this.blackBoard ^= revPat;
                 }
                 this.passCount = 0;
@@ -199,7 +209,7 @@ namespace Kalmia
             if (legalPat == 0UL)
             {
                 moves[0].Turn = this.Turn;
-                moves[0].Position = 0UL;
+                moves[0].Position = Move.PASS;
                 return 1;
             }
 
@@ -210,7 +220,7 @@ namespace Kalmia
                 if ((mask & legalPat) != 0)
                 {
                     moves[count].Turn = this.Turn;
-                    moves[count].Position = mask;
+                    moves[count].Position = i;
                     count++;
                 }
                 mask <<= 1;
@@ -316,7 +326,7 @@ namespace Kalmia
             if(move == "pass")
             {
                 Move pass;
-                pass.Position = 0UL;
+                pass.Position = Move.PASS;
                 pass.Turn = turn;
             }
 
@@ -330,7 +340,7 @@ namespace Kalmia
                 throw new ArgumentException("Invalid Move.");
 
             Move ret;
-            ret.Position = 1UL << (posX + posY * BOARD_SIZE);
+            ret.Position = posX + posY * BOARD_SIZE;
             ret.Turn = turn;
             return ret;
         }
@@ -340,9 +350,10 @@ namespace Kalmia
             if (move.Position == 0)
                 return "pass";
 
+            var movePat = 1UL << move.Position;
             var mask = 1UL;
             var loc = 0;
-            for (; (move.Position & mask) == 0; loc++)
+            for (; (movePat & mask) == 0; loc++)
                 mask <<= 1;
             return (char)((loc % BOARD_SIZE) + 'A') + ((loc / BOARD_SIZE) + 1).ToString();
         }
